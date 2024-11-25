@@ -208,6 +208,96 @@ app.post('/api/open-vscode/:language', (req, res) => {
   });
 });
 
+// 检查工作区和暂存区状态
+app.get('/api/check-status/:language', (req, res) => {
+  const language = req.params.language;
+  const projectPath = config.vidnoz.lans[language];
+
+  if (!projectPath) {
+    return res.status(404).json({ error: 'Project path not found' });
+  }
+
+  exec('git status --porcelain', { cwd: projectPath }, (error, stdout) => {
+    if (error) {
+      return res.status(500).json({ error: 'Failed to check git status' });
+    }
+
+    const lines = stdout.split('\n').filter(line => line.trim());
+    console.log('Git status output for', language, ':', lines);
+
+    // 工作区文件包括：
+    // ?? - 未跟踪的文件
+    // M  - 已修改未暂存的文件
+    // D  - 已删除未暂存的文件
+    // AM - 新添加但又被修改的文件
+    const hasWorkingChanges = lines.some(line => {
+      const status = line.trim().substring(0, 2);
+      return status === '??' || // 未跟踪文件
+             status[1] === 'M' || // 修改未暂存
+             status[1] === 'D' || // 删除未暂存
+             (status[0] === 'A' && status[1] === 'M'); // 新添加但又被修改
+    });
+
+    // 暂存区文件包括：
+    // M  - 修改并已暂存
+    // A  - 新添加到暂存区
+    // D  - 删除并已暂存
+    // R  - 重命名并已暂存
+    const hasStagedChanges = lines.some(line => {
+      const status = line.trim().substring(0, 2);
+      return (status[0] === 'M' && status[1] !== 'M') || // 修改已暂存（且工作区无新修改）
+             (status[0] === 'A' && status[1] !== 'M') || // 新增已暂存（且工作区无新修改）
+             (status[0] === 'D' && status[1] !== 'M') || // 删除已暂存（且工作区无新修改）
+             (status[0] === 'R' && status[1] !== 'M');   // 重命名已暂存（且工作区无新修改）
+    });
+
+    console.log('Status check result for', language, ':', {
+      hasWorkingChanges,
+      hasStagedChanges,
+      files: lines.map(line => ({
+        status: line.substring(0, 2),
+        file: line.substring(3),
+        isWorking: line.startsWith('??') || line[1] === 'M' || line[1] === 'D',
+        isStaged: line[0] === 'M' || line[0] === 'A' || line[0] === 'D' || line[0] === 'R'
+      }))
+    });
+
+    res.json({ 
+      hasWorkingChanges,
+      hasStagedChanges,
+      debug: {
+        raw: lines,
+        parsed: lines.map(line => ({
+          status: line.substring(0, 2),
+          file: line.substring(3)
+        }))
+      }
+    });
+  });
+});
+
+// 提交暂存的更改
+app.post('/api/commit/:language', (req, res) => {
+  const language = req.params.language;
+  const { message } = req.body;
+  const projectPath = config.vidnoz.lans[language];
+
+  if (!projectPath) {
+    return res.status(404).json({ error: 'Project path not found' });
+  }
+
+  if (!message) {
+    return res.status(400).json({ error: 'Commit message is required' });
+  }
+
+  exec(`git commit -m "${message}"`, { cwd: projectPath }, (error, stdout) => {
+    if (error) {
+      return res.status(500).json({ error: 'Failed to commit changes' });
+    }
+    res.json({ success: true, message: stdout });
+  });
+});
+
 // Serve the frontend
 app.use(express.static('public'));
 

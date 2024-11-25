@@ -118,7 +118,7 @@
 
         .content {
             margin-left: 280px;
-            padding: 40px;
+            padding: 20px;
             flex: 1;
             min-height: 100vh;
             display: flex;
@@ -415,6 +415,104 @@
             color: #e74c3c;
         }
 
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .modal-body {
+            margin-bottom: 25px;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .commit-input {
+            width: 100%;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-style: italic;
+            margin-bottom: 15px;
+        }
+
+        .commit-input:focus {
+            outline: none;
+            border-color: var(--sidebar-active);
+        }
+
+        .btn-commit {
+            background: linear-gradient(135deg, #2196f3, #1976d2);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.9;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .btn-commit:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn-cancel {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 10px;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 width: 240px;
@@ -430,16 +528,39 @@
     <div class="sidebar">
         <div class="sidebar-header">
             <i class="fas fa-code-branch fa-lg"></i>
-            <h2>Projects</h2>
+            <h2>Vidnoz Manage</h2>
         </div>
         <ul id="sidebar-links" class="sidebar-links"></ul>
     </div>
     <div id="content" class="content">
         <div class="loading">
             <i class="fas fa-circle-notch fa-lg"></i>
-            <span>Loading projects...</span>
+            <span>Loading Vidnoz...</span>
         </div>
     </div>
+
+    <!-- Commit Modal -->
+    <div id="commitModal" class="modal-backdrop">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Commit Changes</h3>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="commitMessage" class="commit-input" placeholder="Enter commit message..." />
+            </div>
+            <div class="modal-footer">
+                <button class="btn-action btn-cancel" onclick="closeCommitModal()">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </button>
+                <button class="btn-action btn-commit" onclick="submitCommit()">
+                    <i class="fas fa-check"></i>
+                    Commit
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
@@ -518,10 +639,16 @@
                                 <i class="fas fa-code"></i>
                                 ${language}
                             </h2>
-                            <button class="btn-vscode" onclick="openInVSCode('${language}')">
-                                <i class="fas fa-external-link-alt"></i>
-                                Open in VS Code
-                            </button>
+                            <div class="project-actions">
+                                <button class="btn-action btn-commit" onclick="openCommitModal('${language}')">
+                                    <i class="fas fa-code-commit"></i>
+                                    Commit Changes
+                                </button>
+                                <button class="btn-vscode" onclick="openInVSCode('${language}')">
+                                    <i class="fas fa-external-link-alt"></i>
+                                    Open in VS Code
+                                </button>
+                            </div>
                         </div>
                         <div class="file-sections">
                             <div class="file-section staged-files">
@@ -625,6 +752,84 @@
             } catch (error) {
                 console.error(`Failed to ${action} file:`, error);
                 showToast(error.message, 'error');
+            }
+        }
+
+        async function openCommitModal(language) {
+            try {
+                const response = await fetch(`/api/check-status/${language}`);
+                const data = await response.json();
+
+                console.log('Repository status for', language, ':', data);
+
+                // 检查工作区文件
+                const workingFiles = data.debug.parsed
+                    .filter(f => f.status === '??' || f.status[1] === 'M' || f.status[1] === 'D')
+                    .map(f => f.file);
+
+                // 检查暂存区文件
+                const stagedFiles = data.debug.parsed
+                    .filter(f => 
+                        (f.status[0] === 'M' && f.status[1] !== 'M') || 
+                        (f.status[0] === 'A' && f.status[1] !== 'M') || 
+                        (f.status[0] === 'D' && f.status[1] !== 'M') || 
+                        (f.status[0] === 'R' && f.status[1] !== 'M')
+                    )
+                    .map(f => f.file);
+
+                if (workingFiles.length > 0) {
+                    showToast(`Working directory has changes: ${workingFiles.join(', ')}. Please stage or discard them first.`, 'error');
+                    return;
+                }
+
+                if (stagedFiles.length === 0) {
+                    showToast('No changes staged for commit. Please stage some changes first.', 'error');
+                    return;
+                }
+
+                document.getElementById('commitModal').classList.add('show');
+                document.getElementById('commitMessage').value = '';
+                document.getElementById('commitMessage').dataset.language = language;
+                document.getElementById('commitMessage').focus();
+            } catch (error) {
+                console.error('Error checking repository status:', error);
+                showToast('Failed to check repository status', 'error');
+            }
+        }
+
+        function closeCommitModal() {
+            document.getElementById('commitModal').classList.remove('show');
+        }
+
+        async function submitCommit() {
+            const messageInput = document.getElementById('commitMessage');
+            const message = messageInput.value.trim();
+            const language = messageInput.dataset.language;
+
+            if (!message) {
+                showToast('Please enter a commit message', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/commit/${language}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to commit changes');
+                }
+
+                showToast('Changes committed successfully', 'success');
+                closeCommitModal();
+                fetchFiles(language); // 刷新文件列表
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Failed to commit changes', 'error');
             }
         }
 
