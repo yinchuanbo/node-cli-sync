@@ -1,0 +1,14 @@
+{
+  "name": "node-cli-sync",
+  "version": "1.0.0",
+  "description": "A unified panel system to display staged files from multiple projects",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "author": "",
+  "license": "ISC"
+}

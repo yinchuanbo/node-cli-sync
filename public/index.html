@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Status Panel</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #1a1b1e;
+            --bg-secondary: #2d2e32;
+            --bg-tertiary: #35363a;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.7);
+            --text-tertiary: rgba(255, 255, 255, 0.5);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --sidebar-bg: #18191c;
+            --sidebar-hover: #2d2e32;
+            --sidebar-active: #2196f3;
+            --staged-bg: rgba(46, 204, 113, 0.1);
+            --staged-border: #2ecc71;
+            --working-bg: rgba(230, 126, 34, 0.1);
+            --working-border: #e67e22;
+            --card-bg: #2d2e32;
+            --hover-bg: #35363a;
+        }
+
+        body { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-style: italic;
+            margin: 0; 
+            padding: 0; 
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            background-color: var(--sidebar-bg);
+            color: var(--text-primary);
+            padding: 20px 0;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.2);
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar h2 {
+            color: var(--text-primary);
+            font-weight: bold;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .sidebar-links {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            display: block;
+            padding: 12px 20px;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar a:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0;
+            background: var(--sidebar-active);
+            opacity: 0.1;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar a:hover {
+            color: var(--text-primary);
+            background-color: var(--sidebar-hover);
+        }
+
+        .sidebar a:hover:before {
+            width: 100%;
+        }
+
+        .sidebar a.active {
+            color: var(--text-primary);
+            background-color: var(--sidebar-hover);
+            border-left-color: var(--sidebar-active);
+        }
+
+        .sidebar a.active:before {
+            width: 100%;
+        }
+
+        .content {
+            margin-left: 280px;
+            padding: 40px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .project {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            padding: 30px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .project-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .project-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .project-title i {
+            color: var(--sidebar-active);
+        }
+
+        .file-sections {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            min-height: 0;
+        }
+
+        .file-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0;
+            padding: 25px;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            background-color: var(--bg-secondary);
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .staged-files .section-title i {
+            color: var(--staged-border);
+        }
+
+        .working-files .section-title i {
+            color: var(--working-border);
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .file-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .file-list::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-thumb:hover {
+            background: var(--text-tertiary);
+        }
+
+        .file-list li {
+            margin-bottom: 12px;
+            padding: 14px 18px;
+            border-radius: 8px;
+            background-color: var(--bg-tertiary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border-color);
+        }
+
+        .file-list li:hover {
+            background-color: var(--hover-bg);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+
+        .file-name {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            gap: 10px;
+            color: var(--text-secondary);
+        }
+
+        .file-name i {
+            color: var(--text-tertiary);
+            font-size: 1.1em;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+            margin-left: 16px;
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            font-style: italic;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .btn-action i {
+            font-size: 12px;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn-action:active {
+            transform: translateY(0);
+        }
+
+        .btn-unstage {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .btn-stage {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        .btn-discard {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+
+        .btn-vscode {
+            background: linear-gradient(135deg, #0078d4, #005a9e);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            padding: 8px 16px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0.9;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .btn-vscode:hover {
+            opacity: 1;
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+
+        .btn-vscode i {
+            font-size: 12px;
+        }
+
+        .empty-list {
+            color: var(--text-tertiary);
+            text-align: center;
+            padding: 20px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 14px;
+            border: 1px solid var(--border-color);
+        }
+
+        .empty-list i {
+            color: var(--text-tertiary);
+            font-size: 1.1em;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(20px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            color: var(--text-secondary);
+            gap: 12px;
+            font-size: 16px;
+        }
+
+        .loading i {
+            color: var(--sidebar-active);
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .error {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-tertiary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .error i {
+            font-size: 2em;
+            color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 240px;
+            }
+            .content {
+                margin-left: 240px;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-code-branch fa-lg"></i>
+            <h2>Projects</h2>
+        </div>
+        <ul id="sidebar-links" class="sidebar-links"></ul>
+    </div>
+    <div id="content" class="content">
+        <div class="loading">
+            <i class="fas fa-circle-notch fa-lg"></i>
+            <span>Loading projects...</span>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        async function initializeSidebar() {
+            try {
+                const response = await fetch('/api/languages');
+                const languages = await response.json();
+                console.log('Available languages:', languages);
+
+                const sidebarLinks = document.getElementById('sidebar-links');
+                sidebarLinks.innerHTML = '';
+
+                if (languages && languages.length > 0) {
+                    languages.forEach(lang => {
+                        const li = createSidebarLink(lang);
+                        sidebarLinks.appendChild(li);
+                    });
+
+                    // Load first language's files automatically
+                    showFiles(languages[0]);
+                } else {
+                    console.error('No languages available.');
+                    document.getElementById('content').innerHTML = `
+                        <div class="error">
+                            <i class="fas fa-exclamation-circle"></i> No projects available.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to initialize sidebar:', error);
+                document.getElementById('content').innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-circle"></i> Failed to load projects: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function createSidebarLink(language) {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = '#';
+            a.textContent = language;
+            a.onclick = (e) => {
+                e.preventDefault();
+                showFiles(language);
+            };
+            li.appendChild(a);
+            return li;
+        }
+
+        async function fetchFiles(language) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="loading">
+                    <i class="fas fa-circle-notch fa-lg"></i>
+                    <span>Loading ${language} files...</span>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`/api/files/${language}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch files');
+                }
+
+                const { staged, working } = data;
+                
+                contentDiv.innerHTML = `
+                    <div class="project">
+                        <div class="project-header">
+                            <h2 class="project-title">
+                                <i class="fas fa-code"></i>
+                                ${language}
+                            </h2>
+                            <button class="btn-vscode" onclick="openInVSCode('${language}')">
+                                <i class="fas fa-external-link-alt"></i>
+                                Open in VS Code
+                            </button>
+                        </div>
+                        <div class="file-sections">
+                            <div class="file-section staged-files">
+                                <div class="section-title">
+                                    <i class="fas fa-check-circle"></i>
+                                    Staged Files
+                                </div>
+                                ${renderFileList(staged, 'staged', language)}
+                            </div>
+                            <div class="file-section working-files">
+                                <div class="section-title">
+                                    <i class="fas fa-edit"></i>
+                                    Working Files
+                                </div>
+                                ${renderFileList(working, 'working', language)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function renderFileList(files, type, language) {
+            let html = `<ul class="file-list">`;
+            if (files.length > 0) {
+                files.forEach(file => {
+                    html += `
+                        <li>
+                            <div class="file-name">
+                                <i class="fas fa-file-alt"></i>
+                                ${file}
+                            </div>
+                            <div class="file-actions">
+                                ${type === 'staged' ? `
+                                    <button class="btn-action btn-unstage" onclick="handleGitAction('unstage', '${language}', '${file}')">
+                                        <i class="fas fa-minus-circle"></i>
+                                        Unstage
+                                    </button>
+                                ` : `
+                                    <button class="btn-action btn-stage" onclick="handleGitAction('stage', '${language}', '${file}')">
+                                        <i class="fas fa-plus-circle"></i>
+                                        Stage
+                                    </button>
+                                    <button class="btn-action btn-discard" onclick="handleGitAction('discard', '${language}', '${file}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                        Discard
+                                    </button>
+                                `}
+                            </div>
+                        </li>
+                    `;
+                });
+            } else {
+                html += `
+                    <li class="empty-list">
+                        <i class="fas fa-info-circle"></i>
+                        No ${type} files
+                    </li>
+                `;
+            }
+            html += '</ul>';
+            return html;
+        }
+
+        async function openInVSCode(language) {
+            try {
+                const response = await fetch(`/api/open-vscode/${language}`, {
+                    method: 'POST'
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to open VS Code');
+                }
+                showToast('Opening in VS Code...', 'success');
+            } catch (error) {
+                console.error('Error:', error);
+                showToast('Failed to open VS Code', 'error');
+            }
+        }
+
+        async function handleGitAction(action, language, file) {
+            try {
+                const response = await fetch(`/api/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ language, file }),
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showToast('Operation successful', 'success');
+                    // Refresh the file list
+                    fetchFiles(language);
+                } else {
+                    throw new Error(data.error || 'Operation failed');
+                }
+            } catch (error) {
+                console.error(`Failed to ${action} file:`, error);
+                showToast(error.message, 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+            toast.innerHTML = `<i class="fas fa-${icon}"></i> ${message}`;
+            document.body.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showError(message) {
+            const contentDiv = document.getElementById('content');
+            contentDiv.innerHTML = `
+                <div class="error">
+                    <i class="fas fa-exclamation-circle"></i>
+                    ${message}
+                </div>
+            `;
+        }
+
+        function showFiles(language) {
+            fetchFiles(language);
+            
+            // Update active state in sidebar
+            const sidebarLinks = document.querySelectorAll('.sidebar-links a');
+            sidebarLinks.forEach(link => {
+                if (link.textContent.trim() === language) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', initializeSidebar);
+    </script>
+</body>
+</html>
