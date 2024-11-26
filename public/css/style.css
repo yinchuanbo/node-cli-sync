@@ -72,9 +72,40 @@ body {
 }
 
 .sidebar-links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px;
+}
+
+.sidebar-links a {
+  flex: 0 0 calc(25% - 8px);
+  padding: 8px 4px;
+  text-align: center;
+  color: #666;
+  text-decoration: none;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-links a:hover {
+  background-color: #e8e8e8;
+  color: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.sidebar-links a.active {
+  background-color: #fff;
+  color: #1a73e8;
+  border-color: #1a73e8;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(26,115,232,0.1);
 }
 
 .sidebar a {
@@ -82,12 +113,17 @@ body {
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
+  gap: 8px;
   transition: all 0.2s ease;
-  border-left: 4px solid transparent;
   position: relative;
   font-weight: 500;
+  box-sizing: border-box;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--bg-tertiary);
+  width: 40px;
+  border-radius: 8px;
+  font-size: 16px;
 }
 
 .sidebar a:before {
@@ -114,13 +150,12 @@ body {
 
 .sidebar a.active {
   color: var(--text-primary);
-  background-color: var(--sidebar-hover);
-  border-left-color: var(--accent-color);
+  background-color: var(--accent-color);
 }
 
 .content {
   margin-left: 280px;
-  padding: 32px;
+  padding: 20px;
   background-color: var(--bg-primary);
   position: relative;
   overflow-y: auto;
@@ -193,8 +228,9 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 20px;
   min-height: 0;
+
 }
 
 .file-section {
@@ -206,6 +242,7 @@ body {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background-color: var(--bg-secondary);
   overflow-y: auto;
+  border-radius: 8px;
 }
 
 .file-section:hover {
@@ -313,7 +350,6 @@ body {
 
 .btn-secondary {
   background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
   color: var(--text-primary);
 }
 
@@ -340,6 +376,7 @@ body {
   align-items: center;
   justify-content: center;
   position: relative;
+  border-radius: 8px;
 }
 
 .btn-icon i {
@@ -489,7 +526,7 @@ body {
 
 .file-browser-modal {
   background: #1e1e1e;
-  border-radius: 12px;
+  border-radius: 8px!important;
   width: 90%;
   height: 85vh;
   display: flex;

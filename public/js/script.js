@@ -391,12 +391,6 @@ async function fetchFiles(language) {
     contentDiv.innerHTML = `
             <div class="project">
                 <div class="project-header">
-                    <div class="project-info">
-                        <h1 class="project-title">
-                            <i class="fas fa-code-branch"></i>
-                            Git Status Panel
-                        </h1>
-                    </div>
                     <div class="project-actions">
                         <button class="btn btn-icon btn-primary" onclick="openCommitModal('${language}')">
                             <i class="fas fa-check"></i>
