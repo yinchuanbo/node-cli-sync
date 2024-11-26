@@ -1,13 +1,22 @@
 const express = require('express');
 const { exec } = require('child_process');
 const config = require('./config');
+const fs = require('fs');
+const path = require('path');
+const cors = require('cors');
 
 const app = express();
 
-// Add middleware to parse JSON bodies
+// Add middleware
 app.use(express.json());
+app.use(cors());
+app.use(express.static('public'));
 
-let port = 3001;
+// Set correct port
+const port = 3005;
+
+// 项目根路径配置
+let PROJECT_ROOT = '';
 
 // Function to get staged files for a given directory
 function getStagedFiles(dir) {
@@ -298,8 +307,208 @@ app.post('/api/commit/:language', (req, res) => {
   });
 });
 
-// Serve the frontend
-app.use(express.static('public'));
+// Project files API
+app.get('/api/project-files/:language', (req, res) => {
+  const language = req.params.language;
+  const projectPath = config.vidnoz.lans[language];
+  
+  try {
+    const files = getProjectFiles(projectPath);
+    res.json(files);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// File content API
+app.get('/api/file-content/:language/*', (req, res) => {
+  const language = req.params.language;
+  const filePath = req.params[0];
+  const projectPath = config.vidnoz.lans[language];
+  const fullPath = path.join(projectPath, filePath);
+
+  // Ensure the requested file is within the project directory
+  if (!fullPath.startsWith(projectPath)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  try {
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      res.json({ content });
+    } else {
+      res.status(404).json({ error: 'File not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function getProjectFiles(dir) {
+  const items = fs.readdirSync(dir);
+  const result = [];
+
+  for (const item of items) {
+    if (item === 'node_modules' || item === '.git') continue;
+
+    const fullPath = path.join(dir, item);
+    const relativePath = path.relative(dir, fullPath);
+    const stats = fs.statSync(fullPath);
+
+    if (stats.isDirectory()) {
+      result.push({
+        name: item,
+        path: relativePath,
+        type: 'directory',
+        children: getProjectFiles(fullPath)
+      });
+    } else {
+      result.push({
+        name: item,
+        path: relativePath,
+        type: 'file'
+      });
+    }
+  }
+
+  return result;
+}
+
+// 获取项目目录结构
+app.get('/api/project-files/:language', (req, res) => {
+  const language = req.params.language;
+  const projectPath = config.vidnoz.lans[language];
+
+  if (!projectPath) {
+    return res.status(404).json({ error: 'Project path not found' });
+  }
+
+  function getDirectoryStructure(dir) {
+    const items = fs.readdirSync(dir);
+    return items.map(item => {
+      const fullPath = path.join(dir, item);
+      const relativePath = path.relative(projectPath, fullPath).replace(/\\/g, '/');
+      
+      const stats = fs.statSync(fullPath);
+      
+      if (stats.isDirectory()) {
+        return {
+          name: item,
+          path: relativePath,
+          type: 'directory',
+          children: getDirectoryStructure(fullPath)
+        };
+      }
+      
+      return {
+        name: item,
+        path: relativePath,
+        type: 'file',
+        size: stats.size
+      };
+    });
+  }
+
+  try {
+    const structure = getDirectoryStructure(projectPath);
+    res.json(structure);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get project structure' });
+  }
+});
+
+// 获取文件内容
+app.get('/api/file-content/:language/*', (req, res) => {
+  const language = req.params.language;
+  const filePath = req.params[0];
+  const projectPath = config.vidnoz.lans[language];
+
+  if (!projectPath) {
+    return res.status(404).json({ error: 'Project path not found' });
+  }
+
+  const fullPath = path.join(projectPath, filePath);
+
+  // 安全检查：确保文件路径在项目目录内
+  if (!fullPath.startsWith(projectPath)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  try {
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    res.json({ content });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to read file' });
+  }
+});
+
+// 获取文件内容的API
+app.get('/file-content', async (req, res) => {
+  try {
+    const requestPath = req.query.path || '';
+    // 确保路径安全，防止目录遍历攻击
+    const normalizedPath = path.normalize(requestPath).replace(/^(\.\.[\/\\])+/, '');
+    const fullPath = path.join(PROJECT_ROOT, normalizedPath);
+    
+    const content = await fs.promises.readFile(fullPath, 'utf-8');
+    res.json({ content });
+  } catch (error) {
+    console.error('Error reading file:', error);
+    res.status(500).json({ error: 'Failed to read file' });
+  }
+});
+
+// 文件保存接口
+app.post('/save-file', async (req, res) => {
+  try {
+    const { path: filePath, content, language } = req.body;
+    if (!filePath || content === undefined || !language) {
+      return res.status(400).json({ error: '需要提供文件路径、内容和语言' });
+    }
+
+    // 从配置中获取对应语言的项目根路径
+    const projectRoot = config.vidnoz.lans[language];
+    if (!projectRoot) {
+      return res.status(400).json({ error: `不支持的语言: ${language}` });
+    }
+
+    // 构建完整的文件保存路径
+    const fullPath = path.join(projectRoot, filePath);
+    const dirPath = path.dirname(fullPath);
+
+    console.log('保存文件信息:', {
+      语言: language,
+      项目根目录: projectRoot,
+      文件路径: filePath,
+      完整路径: fullPath
+    });
+
+    // 确保目录存在
+    await fs.promises.mkdir(dirPath, { recursive: true });
+
+    // 写入文件
+    await fs.promises.writeFile(fullPath, content, 'utf8');
+    console.log('文件已保存到:', fullPath);
+    res.json({ success: true, path: fullPath });
+  } catch (error) {
+    console.error('保存文件时出错:', error);
+    res.status(500).json({ error: '保存文件失败: ' + error.message });
+  }
+});
+
+// 获取项目根路径API
+app.get('/project-root', (req, res) => {
+  const language = req.query.language || 'en';
+  const projectRoot = config.vidnoz.lans[language];
+  
+  if (!projectRoot) {
+    return res.status(400).json({ error: `不支持的语言: ${language}` });
+  }
+  PROJECT_ROOT = projectRoot;
+
+  console.log('返回项目根路径:', { 语言: language, 路径: projectRoot });
+  res.json({ path: projectRoot });
+});
 
 function startServer(port) {
   const server = app.listen(port, () => {
@@ -317,3 +526,45 @@ function startServer(port) {
 }
 
 startServer(port);
+
+// 获取文件列表的函数
+async function getFiles(dirPath) {
+  try {
+    const files = await fs.promises.readdir(dirPath);
+    const fileList = [];
+
+    for (const file of files) {
+      const fullPath = path.join(dirPath, file);
+      const stats = await fs.promises.stat(fullPath);
+      const relativePath = path.relative(PROJECT_ROOT, fullPath).replace(/\\/g, '/');
+      
+      fileList.push({
+        name: file,
+        path: relativePath,
+        type: stats.isDirectory() ? 'directory' : 'file'
+      });
+    }
+
+    return fileList;
+  } catch (error) {
+    console.error('Error reading directory:', error);
+    return [];
+  }
+}
+
+// 文件树API
+app.get('/files', async (req, res) => {
+  try {
+    const requestPath = req.query.path || '';
+    // 确保路径安全，防止目录遍历攻击
+    const normalizedPath = path.normalize(requestPath).replace(/^(\.\.[\/\\])+/, '');
+    const fullPath = path.join(PROJECT_ROOT, normalizedPath);
+    
+    const files = await getFiles(fullPath);
+    console.log("PROJECT_ROOT", PROJECT_ROOT, normalizedPath)
+    res.json(files);
+  } catch (error) {
+    console.error('Error getting files:', error);
+    res.status(500).json({ error: 'Failed to get files' });
+  }
+});
