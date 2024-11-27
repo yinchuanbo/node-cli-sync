@@ -227,99 +227,95 @@ async function handleFileClick(path, type) {
   }
 }
 
-// Monaco Editor配置
-require.config({
-  paths: {
-    vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.36.1/min/vs",
-  },
-});
+// 初始化 Monaco Editor
+function initMonaco() {
+  if (window.monaco) {
+    // 注册 scss 语言支持
+    monaco.languages.register({ id: 'scss' });
 
-// 确保加载所有需要的语言支持
-require(["vs/editor/editor.main"], function () {
-  // 注册scss语言支持
-  monaco.languages.register({ id: 'scss' });
-  
-  // 配置scss语言的语法高亮规则
-  monaco.languages.setMonarchTokensProvider('scss', {
-    defaultToken: '',
-    tokenPostfix: '.scss',
+    // 配置 scss 语言的语法高亮规则
+    monaco.languages.setMonarchTokensProvider('scss', {
+      defaultToken: '',
+      tokenPostfix: '.scss',
 
-    brackets: [
-      { open: '{', close: '}', token: 'delimiter.curly' },
-      { open: '[', close: ']', token: 'delimiter.bracket' },
-      { open: '(', close: ')', token: 'delimiter.parenthesis' },
-    ],
-
-    keywords: [
-      'import', 'extend', 'mixin', 'include', 'if', 'else', 'for', 'each', 'while',
-      'return', 'function', 'at-root', 'debug', 'warn', 'error'
-    ],
-
-    operators: ['+', '-', '*', '/', '%', '=', '>', '<', '>=', '<=', '==', '!=', '&'],
-
-    tokenizer: {
-      root: [
-        { include: '@selector' },
-        { include: '@whitespace' },
-        { include: '@numbers' },
-        { include: '@strings' },
-        { include: '@variables' },
+      brackets: [
+        { open: '{', close: '}', token: 'delimiter.curly' },
+        { open: '[', close: ']', token: 'delimiter.bracket' },
+        { open: '(', close: ')', token: 'delimiter.parenthesis' },
       ],
 
-      whitespace: [
-        [/\s+/, 'white'],
-        [/\/\*/, 'comment', '@comment'],
-        [/\/\/.*$/, 'comment'],
+      keywords: [
+        'import', 'extend', 'mixin', 'include', 'if', 'else', 'for', 'each', 'while',
+        'return', 'function', 'at-root', 'debug', 'warn', 'error'
       ],
 
-      comment: [
-        [/[^/*]+/, 'comment'],
-        [/\*\//, 'comment', '@pop'],
-        [/[/*]/, 'comment'],
-      ],
+      operators: ['+', '-', '*', '/', '%', '=', '>', '<', '>=', '<=', '==', '!=', '&'],
 
-      selector: [
-        [/[a-zA-Z_][\w-]*/, {
-          cases: {
-            '@keywords': 'keyword',
-            '@default': 'identifier'
-          }
-        }],
-        [/&/, 'tag'],
-        [/[.,#]@[-\w]+/, 'tag'],
-        [/\[[^\]]+\]/, 'tag'],
-      ],
+      tokenizer: {
+        root: [
+          { include: '@selector' },
+          { include: '@whitespace' },
+          { include: '@numbers' },
+          { include: '@strings' },
+          { include: '@variables' },
+        ],
 
-      numbers: [
-        [/-?\d*\.\d+([eE][-+]?\d+)?[px%em]*/, 'number'],
-        [/-?\d+[px%em]*/, 'number'],
-      ],
+        whitespace: [
+          [/\s+/, 'white'],
+          [/\/\*/, 'comment', '@comment'],
+          [/\/\/.*$/, 'comment'],
+        ],
 
-      strings: [
-        [/"([^"\\]|\\.)*$/, 'string.invalid'],
-        [/'([^'\\]|\\.)*$/, 'string.invalid'],
-        [/"/, 'string', '@string_double'],
-        [/'/, 'string', '@string_single'],
-      ],
+        comment: [
+          [/[^/*]+/, 'comment'],
+          [/\/\*/, 'comment', '@push'],
+          [/\*\//, 'comment', '@pop'],
+          [/[/*]/, 'comment'],
+        ],
 
-      string_double: [
-        [/[^\\"]+/, 'string'],
-        [/\\./, 'string.escape'],
-        [/"/, 'string', '@pop'],
-      ],
+        selector: [
+          [/[a-zA-Z_][\w-]*/, {
+            cases: {
+              '@keywords': 'keyword',
+              '@default': 'identifier'
+            }
+          }],
+          [/&/, 'tag'],
+          [/[.,#]@[-\w]+/, 'tag'],
+          [/\[[^\]]+\]/, 'tag'],
+        ],
 
-      string_single: [
-        [/[^\\']+/, 'string'],
-        [/\\./, 'string.escape'],
-        [/'/, 'string', '@pop'],
-      ],
+        numbers: [
+          [/-?\d*\.\d+([eE][-+]?\d+)?[px%em]*/, 'number'],
+          [/-?\d+[px%em]*/, 'number'],
+        ],
 
-      variables: [
-        [/\$\w+/, 'variable'],
-      ],
-    },
-  });
-});
+        strings: [
+          [/"([^"\\]|\\.)*$/, 'string.invalid'],
+          [/'([^'\\]|\\.)*$/, 'string.invalid'],
+          [/"/, 'string', '@string_double'],
+          [/'/, 'string', '@string_single'],
+        ],
+
+        string_double: [
+          [/[^\\"]+/, 'string'],
+          [/\\./, 'string.escape'],
+          [/"/, 'string', '@pop'],
+        ],
+
+        string_single: [
+          [/[^\\']+/, 'string'],
+          [/\\./, 'string.escape'],
+          [/'/, 'string', '@pop'],
+        ],
+
+        variables: [
+          [/\$\w+/, 'variable'],
+        ],
+      },
+    });
+  }
+}
 
 async function initializeSidebar() {
   try {
@@ -412,14 +408,14 @@ async function fetchFiles(language) {
                             <i class="fas fa-check-circle"></i>
                             Staged Files
                         </div>
-                        ${renderFileList(staged, "staged", language)}
+                        ${renderStagedFiles(staged, "staged", language)}
                     </div>
                     <div class="file-section working-files">
                         <div class="section-title">
                             <i class="fas fa-edit"></i>
                             Working Files
                         </div>
-                        ${renderFileList(working, "working", language)}
+                        ${renderWorkingFiles(working, "working", language)}
                     </div>
                 </div>
             </div>
@@ -430,7 +426,7 @@ async function fetchFiles(language) {
   }
 }
 
-function renderFileList(files, type, language) {
+function renderStagedFiles(files, type, language) {
   let html = `<ul class="file-list">`;
   if (files.length > 0) {
     files.forEach((file) => {
@@ -441,25 +437,45 @@ function renderFileList(files, type, language) {
                         ${file}
                     </div>
                     <div class="file-actions">
-                        ${
-                          type === "staged"
-                            ? `
-                            <button class="btn btn-danger" onclick="handleGitAction('unstage', '${language}', '${file}')">
-                                <i class="fas fa-minus-circle"></i>
-                                Unstage
-                            </button>
-                        `
-                            : `
-                            <button class="btn btn-success" onclick="handleGitAction('stage', '${language}', '${file}')">
-                                <i class="fas fa-plus-circle"></i>
-                                Stage
-                            </button>
-                            <button class="btn btn-danger" onclick="handleGitAction('discard', '${language}', '${file}')">
-                                <i class="fas fa-trash-alt"></i>
-                                Discard
-                            </button>
-                        `
-                        }
+                        <button class="btn btn-secondary" onclick="handleGitAction('unstage', '${language}', '${file}')">
+                            <i class="fas fa-minus-circle"></i>
+                            Unstage
+                        </button>
+                    </div>
+                </li>
+            `;
+    });
+  } else {
+    html += `
+            <li class="empty-list">
+                <i class="fas fa-info-circle"></i>
+                No ${type} files
+            </li>
+        `;
+  }
+  html += "</ul>";
+  return html;
+}
+
+function renderWorkingFiles(files, type, language) {
+  let html = `<ul class="file-list">`;
+  if (files.length > 0) {
+    files.forEach((file) => {
+      html += `
+                <li class="file-item">
+                    <div class="file-name">
+                        <i class="fas fa-file-alt"></i>
+                        ${file}
+                    </div>
+                    <div class="file-actions">
+                        <button class="btn btn-primary" onclick="handleGitAction('stage', '${language}', '${file}')">
+                            <i class="fas fa-plus-circle"></i>
+                            Stage
+                        </button>
+                        <button class="btn btn-danger" onclick="handleGitAction('discard', '${language}', '${file}')">
+                            <i class="fas fa-trash-alt"></i>
+                            Discard
+                        </button>
                     </div>
                 </li>
             `;
@@ -894,108 +910,17 @@ async function handleFileClick(event, path, type) {
         await initializeMonacoEditor();
       }
 
-      // 获取文件内容
+      // 获取当前选择的语言
+      const languageSelect = document.querySelector('.language-select');
+      if (languageSelect) {
+        updateCurrentLanguage(languageSelect.value);
+      }
+
       await loadFileContent(path);
     } catch (error) {
       console.error("Failed to load file:", error);
       showToast("Failed to load file content", "error");
     }
-  }
-}
-
-async function initializeMonacoEditor() {
-  if (!editor) {
-    const editorContainer = document.getElementById("monacoEditor");
-    if (!editorContainer) return;
-
-    editor = monaco.editor.create(editorContainer, {
-      theme: "vs-dark",
-      automaticLayout: true,
-      fontSize: 16,
-      fontFamily: "'JetBrains Mono', monospace",
-      lineHeight: 30,
-      minimap: { enabled: true },
-    });
-
-    // 监听编辑器内容变化
-    editor.onDidChangeModelContent(() => {
-      if (currentFile) {
-        modifiedFiles.set(currentFile, true);
-        updateFileModifiedStatus(currentFile, true);
-      }
-    });
-
-    // Ctrl+S保存命令
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, async () => {
-      if (currentFile) {
-        try {
-          const content = editor.getValue();
-          const languageSelect = document.querySelector('#sidebar-links a.active');
-          const selectedLanguage = languageSelect ? languageSelect.textContent.trim() : 'en';
-          
-          const response = await fetch('http://localhost:3005/save-file', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              path: currentFile,
-              content: content,
-              language: selectedLanguage
-            })
-          });
-
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || '保存文件失败');
-          }
-
-          const result = await response.json();
-          console.log('文件已保存到:', result.path);
-          
-          // 清除修改状态
-          modifiedFiles.delete(currentFile);
-          updateFileModifiedStatus(currentFile, false);
-          
-          showToast('文件保存成功', 'success');
-        } catch (error) {
-          console.error('保存文件时出错:', error);
-          showToast('保存文件失败: ' + error.message, 'error');
-        }
-      } else {
-        showToast('没有打开的文件', 'error');
-      }
-    });
-  }
-  return editor;
-}
-
-async function openFileBrowser(language) {
-  currentLanguage = language;
-  document.getElementById("fileBrowserModal").classList.add("show");
-  await loadFileTree();
-}
-
-function closeFileBrowser() {
-  document.getElementById("fileBrowserModal").classList.remove("show");
-}
-
-async function openFile(path) {
-  try {
-    if (!editor) {
-      await initializeMonacoEditor();
-    }
-
-    // 获取当前选择的语言
-    const languageSelect = document.querySelector('.language-select');
-    if (languageSelect) {
-      updateCurrentLanguage(languageSelect.value);
-    }
-
-    await loadFileContent(path);
-  } catch (error) {
-    console.error("Failed to load file:", error);
-    showToast("Failed to load file content", "error");
   }
 }
 
@@ -1016,6 +941,77 @@ async function getProjectRoot() {
     console.error('获取项目根路径出错:', error);
     showToast('获取项目根路径失败', 'error');
     return null;
+  }
+}
+
+function renderCodeWithLineNumbers(code, filePath) {
+  const lines = code.split('\n');
+  const language = getLanguageFromPath(filePath);
+  
+  return lines.map((line, index) => {
+    const lineNumber = index + 1;
+    const isDiff = line.startsWith('+') || line.startsWith('-');
+    const diffClass = line.startsWith('+') ? 'diff-added' : 
+                     line.startsWith('-') ? 'diff-removed' : '';
+    const content = isDiff ? line.slice(1) : line;
+    
+    // Create a temporary element to hold the highlighted code
+    const preElement = document.createElement('pre');
+    preElement.className = `language-${language}`;
+    const codeElement = document.createElement('code');
+    codeElement.className = `language-${language}`;
+    codeElement.textContent = content;
+    preElement.appendChild(codeElement);
+    
+    // Use Prism to highlight the code
+    Prism.highlightElement(codeElement);
+    
+    return `
+      <div class="diff-line ${diffClass}">
+        <div class="diff-line-number">${lineNumber}</div>
+        <div class="diff-line-content">${preElement.outerHTML}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getLanguageFromPath(filePath) {
+  const ext = filePath.split('.').pop().toLowerCase();
+  switch (ext) {
+    case 'js': return 'javascript';
+    case 'css': return 'css';
+    case 'html': return 'markup';
+    case 'json': return 'javascript';
+    default: return 'javascript';
+  }
+}
+
+async function refreshFiles() {
+  try {
+    const response = await fetch(`/api/files/${currentLanguage}`);
+    if (!response.ok) throw new Error('Failed to fetch files');
+    const { staged, working } = await response.json();
+
+    const fileSection = document.querySelector('.file-section-container');
+    fileSection.innerHTML = `
+      <div class="file-section staged-files">
+        <div class="section-title">
+          <i class="fas fa-check-circle"></i>
+          Staged Files
+        </div>
+        ${renderStagedFiles(staged, "staged", currentLanguage)}
+      </div>
+      <div class="file-section working-files">
+        <div class="section-title">
+          <i class="fas fa-edit"></i>
+          Working Files
+        </div>
+        ${renderWorkingFiles(working, "working", currentLanguage)}
+      </div>
+    `;
+  } catch (error) {
+    console.error(`Failed to fetch files for ${currentLanguage}:`, error);
+    showError(error.message);
   }
 }
 

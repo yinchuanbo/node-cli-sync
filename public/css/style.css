@@ -1,3 +1,168 @@
+/* Diff Modal Styles */
+.diff-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s;
+}
+
+.diff-modal.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.diff-content {
+    background: var(--bg-secondary);
+    width: 95%;
+    max-width: 1400px;
+    height: 90vh;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.diff-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-tertiary);
+    min-height: 48px;
+}
+
+.diff-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.close-btn:hover {
+    opacity: 1;
+}
+
+.diff-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px;
+    min-height: 0;
+    background: var(--bg-secondary);
+}
+
+#mergely-container {
+    flex: 1;
+    display: flex;
+    background: var(--bg-secondary);
+    min-height: 0;
+    position: relative;
+    gap: 16px;
+}
+
+.mergely-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Mergely 编辑器样式 */
+.CodeMirror {
+    height: 100% !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+.CodeMirror-gutters {
+    background: var(--bg-tertiary) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+
+.CodeMirror-linenumber {
+    color: var(--text-tertiary) !important;
+    padding: 0 8px !important;
+}
+
+.CodeMirror-lines {
+    padding: 8px 0 !important;
+}
+
+.CodeMirror pre {
+    padding: 0 8px !important;
+}
+
+/* Mergely 差异高亮样式 */
+.mergely.d.lhs {
+    background-color: rgba(255, 0, 0, 0.1) !important;
+}
+
+.mergely.c.lhs {
+    background-color: rgba(255, 0, 0, 0.1) !important;
+}
+
+.mergely.d.rhs {
+    background-color: rgba(0, 255, 0, 0.1) !important;
+}
+
+.mergely.c.rhs {
+    background-color: rgba(0, 255, 0, 0.1) !important;
+}
+
+.mergely-column .CodeMirror {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+/* Mergely 行号和边距样式 */
+.mergely-margin {
+    background-color: var(--bg-tertiary) !important;
+}
+
+.mergely-active {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Mergely 滚动条样式 */
+.CodeMirror-vscrollbar,
+.CodeMirror-hscrollbar {
+    background-color: var(--bg-secondary) !important;
+}
+
+.CodeMirror-scrollbar-filler {
+    background-color: var(--bg-secondary) !important;
+}
+
 :root {
   --bg-primary: #1e1f22;
   --bg-secondary: #2b2d31;
@@ -293,14 +458,89 @@ body {
 
 .file-actions {
   display: flex;
-  gap: 12px;
-  margin-left: auto;
-  opacity: 0.8;
-  transition: opacity 0.2s ease;
+  gap: 8px;
+  align-items: center;
 }
 
-.file-actions:hover {
-  opacity: 1;
+.file-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.file-actions .btn i {
+  font-size: 14px;
+}
+
+.file-actions .btn-primary {
+  background: var(--accent-color);
+  color: var(--text-white);
+}
+
+.file-actions .btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.file-actions .btn-secondary {
+  background: #2d3748;
+  color: #a0aec0;
+  border-color: #4a5568;
+}
+
+.file-actions .btn-secondary:hover {
+  background: #3a4a63;
+  color: #e2e8f0;
+}
+
+.file-actions .btn-danger {
+  background: var(--danger-color);
+  color: var(--text-white);
+}
+
+.file-actions .btn-danger:hover {
+  background: var(--danger-hover);
+}
+
+.file-actions .diff-btn {
+  background: #2c4058;
+  color: #88ccff;
+  border-color: #4a72a3;
+}
+
+.file-actions .diff-btn:hover {
+  background: #385681;
+  color: #bde3ff;
+  border-color: #6494cc;
+}
+
+.file-actions .btn-info {
+  background: #2b6cb0;
+  color: #ebf8ff;
+  border-color: #4299e1;
+}
+
+.file-actions .btn-info:hover {
+  background: #2c5282;
+  color: #fff;
+  border-color: #63b3ed;
+}
+
+.file-actions .btn-warning {
+  background: #c05621;
+  color: #fffaf0;
+  border-color: #ed8936;
+}
+
+.file-actions .btn-warning:hover {
+  background: #9c4221;
+  color: #fff;
+  border-color: #f6ad55;
 }
 
 .btn {
@@ -637,11 +877,11 @@ body {
   text-align: center;
 }
 
-.folder-icon {
-  transition: transform 0.2s ease;
+.file-tree-item-content .folder-icon {
+  transition: transform 0.2s;
 }
 
-.folder-icon.fa-chevron-down {
+.file-tree-item-content .folder-icon.fa-chevron-down {
   transform: rotate(90deg);
 }
 
@@ -864,4 +1104,153 @@ body {
 .file-section:hover::-webkit-scrollbar-thumb,
 .monaco-editor:hover::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.15);
+}
+
+.file-item { display: flex; justify-content: space-between; align-items: center; }
+.diff-btn { padding: 4px 8px; background: transparent; border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-secondary); cursor: pointer; }
+.diff-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--accent-color); }
+.diff-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  z-index: 1100;
+  display: none;
+}
+
+.diff-modal.show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diff-content {
+  background: var(--bg-secondary);
+  width: 95%;
+  max-width: 1400px;
+  height: 90vh;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.diff-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-tertiary);
+}
+
+.diff-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.diff-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.diff-pane-header {
+  padding: 8px 16px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.diff-pane-content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.diff-line {
+  display: flex;
+  min-height: 20px;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre;
+  position: relative;
+}
+
+.diff-line-number {
+  user-select: none;
+  text-align: right;
+  padding: 0 8px;
+  min-width: 50px;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  border-right: 1px solid var(--border-color);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.diff-line-content {
+  flex: 1;
+  padding: 0 16px;
+  min-width: fit-content;
+}
+
+/* VS Code 风格的差异颜色 */
+.diff-line.diff-added {
+  background: rgba(51, 255, 0, 0.1);
+}
+
+.diff-line.diff-added .diff-line-number {
+  background: rgba(51, 255, 0, 0.15);
+  color: #3d8c40;
+}
+
+.diff-line.diff-removed {
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.diff-line.diff-removed .diff-line-number {
+  background: rgba(255, 0, 0, 0.15);
+  color: #f14c4c;
+}
+
+/* 添加修改指示器 */
+.diff-line.diff-added::before,
+.diff-line.diff-removed::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.diff-line.diff-added::before {
+  background: #3d8c40;
+}
+
+.diff-line.diff-removed::before {
+  background: #f14c4c;
+}
+
+/* 代码高亮优化 */
+.diff-line pre[class*="language-"] {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.diff-line code[class*="language-"] {
+  white-space: pre;
+  background: transparent;
+  text-shadow: none;
+  font-size: inherit;
 }

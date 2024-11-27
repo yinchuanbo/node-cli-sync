@@ -1,8 +1,11 @@
 const express = require('express');
-const { exec } = require('child_process');
-const config = require('./config');
-const fs = require('fs');
 const path = require('path');
+const fs = require('fs').promises;
+const { execSync } = require('child_process');
+const Diff = require('diff');
+const config = require('./config');
+
+const { exec } = require('child_process');
 const cors = require('cors');
 
 const app = express();
@@ -508,6 +511,67 @@ app.get('/project-root', (req, res) => {
 
   console.log('返回项目根路径:', { 语言: language, 路径: projectRoot });
   res.json({ path: projectRoot });
+});
+
+const diff = require('diff');
+const util = require('util');
+const execAsync = util.promisify(require('child_process').exec);
+
+async function getProjectRoot(language) {
+  try {
+    const projectPath = config.vidnoz.lans[language.toLowerCase()];
+    if (!projectPath) {
+      console.error('Language not found in config:', language);
+      return null;
+    }
+    
+    try {
+      await fs.access(projectPath);
+      return projectPath;
+    } catch (error) {
+      console.error('Project directory not found:', projectPath);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error getting project root:', error);
+    return null;
+  }
+}
+
+app.get('/api/diff/:language/:file', async (req, res) => {
+  try {
+    const { language, file } = req.params;
+    const projectRoot = await getProjectRoot(language);
+    if (!projectRoot) {
+      return res.status(404).json({ error: 'Project root not found' });
+    }
+
+    const filePath = path.join(projectRoot, file);
+    
+    // 获取当前文件内容
+    const currentContent = await fs.readFile(filePath, 'utf8');
+    
+    // 获取Git中的原始内容
+    let originalContent = '';
+    try {
+      const gitCommand = `git show HEAD:${file}`;
+      originalContent = execSync(gitCommand, {
+        cwd: projectRoot,
+        encoding: 'utf8'
+      });
+    } catch (error) {
+      // 如果是新文件，则原始内容为空
+      originalContent = '';
+    }
+
+    res.json({
+      original: originalContent,
+      modified: currentContent
+    });
+  } catch (error) {
+    console.error('Error generating diff:', error);
+    res.status(500).json({ error: 'Failed to generate diff' });
+  }
 });
 
 function startServer(port) {
